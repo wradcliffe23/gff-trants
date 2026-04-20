@@ -1,0 +1,2437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFF Fantasy Football</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pitch: #0d1f0d;
+    --pitch2: #122012;
+    --pitch3: #163016;
+    --gold: #e8c840;
+    --gold2: #c9a820;
+    --lime: #7fff00;
+    --red: #e03535;
+    --white: #f0ede4;
+    --muted: #8a9e8a;
+    --card: #101e10;
+    --border: #1e3a1e;
+    --border2: #2a4a2a;
+    --dark: #070f07;
+    --green: #2ecc71;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--dark);
+    color: var(--white);
+    font-family: 'Barlow', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE TEXTURE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: .4;
+  }
+
+  /* ── NAVBAR ── */
+  #navbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 1000;
+    background: rgba(7,15,7,.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-inner {
+    max-width: 1280px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    height: 60px;
+    gap: 4px;
+  }
+
+  .nav-logo {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.6rem;
+    letter-spacing: 3px;
+    color: var(--gold);
+    margin-right: auto;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .nav-logo span { color: var(--white); }
+
+  .nav-link {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Barlow', sans-serif;
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: color .2s, background .2s;
+    position: relative;
+  }
+  .nav-link:hover { color: var(--white); }
+  .nav-link.active { color: var(--gold); }
+  .nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 12px; right: 12px;
+    height: 2px;
+    background: var(--gold);
+  }
+
+  .nav-badge {
+    background: var(--gold);
+    color: #000;
+    font-size: .65rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+
+  .nav-user-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: 12px;
+    background: var(--pitch3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px 4px 8px;
+    font-size: .8rem;
+  }
+  .nav-user-chip .avatar {
+    width: 24px; height: 24px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .7rem;
+    font-weight: 700;
+    color: #000;
+  }
+
+  .btn-logout {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: .75rem;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'Barlow', sans-serif;
+    transition: all .2s;
+    margin-left: 6px;
+  }
+  .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── PAGES ── */
+  .page {
+    display: none;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 80px 24px 60px;
+    position: relative;
+    z-index: 1;
+  }
+  .page.active { display: block; }
+
+  /* ── HERO ── */
+  #hero {
+    position: relative;
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    overflow: hidden;
+    margin: -80px -24px 0;
+    padding: 120px 24px 60px;
+  }
+
+  .pitch-lines {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(transparent 49.5%, rgba(255,255,255,.03) 49.5%, rgba(255,255,255,.03) 50.5%, transparent 50.5%),
+      linear-gradient(90deg, transparent 49.5%, rgba(255,255,255,.03) 49.5%, rgba(255,255,255,.03) 50.5%, transparent 50.5%),
+      radial-gradient(ellipse 60% 60% at 50% 100%, rgba(255,255,255,.04) 0%, transparent 70%),
+      linear-gradient(180deg, #071a07 0%, #0d2a0d 50%, #071a07 100%);
+  }
+
+  .hero-content { position: relative; z-index: 1; }
+
+  .hero-eyebrow {
+    font-size: .75rem;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 16px;
+    font-weight: 600;
+  }
+
+  .hero-title {
+    font-family: 'Anton', sans-serif;
+    font-size: clamp(4rem, 12vw, 8rem);
+    letter-spacing: 6px;
+    line-height: .9;
+    color: var(--white);
+    text-shadow: 0 0 60px rgba(232,200,64,.3);
+  }
+  .hero-title .gold { color: var(--gold); }
+
+  .hero-sub {
+    margin-top: 16px;
+    color: var(--muted);
+    font-size: 1.05rem;
+    font-weight: 300;
+    letter-spacing: .5px;
+  }
+
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    margin-top: 40px;
+    flex-wrap: wrap;
+  }
+
+  .hstat { text-align: center; }
+  .hstat-val {
+    font-family: 'Anton', sans-serif;
+    font-size: 2.8rem;
+    letter-spacing: 2px;
+    color: var(--gold);
+    line-height: 1;
+  }
+  .hstat-lbl {
+    font-size: .7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .hero-cta {
+    margin-top: 32px;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  /* ── TRANSFER WINDOW BANNER ── */
+  .tw-banner {
+    margin-top: 32px;
+    background: linear-gradient(135deg, #1a0a0a, #2a1010);
+    border: 1px solid #4a1a1a;
+    border-radius: 8px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .tw-banner.open {
+    background: linear-gradient(135deg, #0a1a0a, #102a10);
+    border-color: #1a4a1a;
+  }
+  .tw-icon { font-size: 1.4rem; }
+  .tw-text { flex: 1; }
+  .tw-title { font-weight: 700; font-size: .9rem; }
+  .tw-sub { font-size: .78rem; color: var(--muted); margin-top: 2px; }
+  .tw-countdown {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    color: var(--red);
+  }
+  .tw-countdown.open { color: var(--green); }
+
+  /* ── SECTION TITLES ── */
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 20px;
+    margin-top: 40px;
+  }
+  .section-title {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    color: var(--white);
+  }
+  .section-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+  .section-sub {
+    font-size: .78rem;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.15rem;
+    letter-spacing: 1.5px;
+    color: var(--gold);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 22px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Barlow', sans-serif;
+    font-weight: 700;
+    font-size: .88rem;
+    letter-spacing: .5px;
+    transition: all .15s;
+    text-decoration: none;
+  }
+  .btn-primary { background: var(--gold); color: #000; }
+  .btn-primary:hover { background: var(--gold2); transform: translateY(-1px); }
+  .btn-outline { background: transparent; border: 1.5px solid var(--border2); color: var(--white); }
+  .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
+  .btn-green { background: #166534; color: #fff; }
+  .btn-green:hover { background: #15803d; }
+  .btn-red { background: #7f1d1d; color: #fff; }
+  .btn-red:hover { background: #991b1b; }
+  .btn-ghost { background: var(--pitch3); border: 1px solid var(--border); color: var(--muted); }
+  .btn-ghost:hover { color: var(--white); border-color: var(--border2); }
+  .btn-sm { padding: 6px 14px; font-size: .78rem; }
+  .btn-xs { padding: 4px 10px; font-size: .72rem; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none !important; }
+
+  /* ── TABLES ── */
+  .tbl-wrap { overflow-x: auto; }
+  table.tbl {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .85rem;
+  }
+  table.tbl thead th {
+    background: var(--pitch2);
+    color: var(--muted);
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  table.tbl thead th:hover { color: var(--white); }
+  table.tbl thead th.sort-active { color: var(--gold); }
+  table.tbl tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(30,58,30,.5);
+    vertical-align: middle;
+  }
+  table.tbl tbody tr:hover td { background: rgba(255,255,255,.02); }
+  table.tbl tbody tr:last-child td { border-bottom: none; }
+
+  .pts-pos { color: var(--gold); font-weight: 700; }
+  .pts-neg { color: var(--red); font-weight: 700; }
+  .price-tag {
+    background: rgba(232,200,64,.1);
+    border: 1px solid rgba(232,200,64,.2);
+    color: var(--gold);
+    font-weight: 700;
+    font-size: .78rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .rank-1 { color: var(--gold); }
+  .rank-2 { color: #c0c0c0; }
+  .rank-3 { color: #cd7f32; }
+
+  .team-pill {
+    font-size: .72rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  /* ── FORMS ── */
+  .form-group { margin-bottom: 16px; }
+  .form-group label {
+    display: block;
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    background: var(--pitch2);
+    border: 1px solid var(--border);
+    color: var(--white);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: .9rem;
+    font-family: 'Barlow', sans-serif;
+    transition: border-color .2s;
+    -webkit-appearance: none;
+  }
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    outline: none;
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(232,200,64,.1);
+  }
+  .form-group select option { background: #0d1f0d; color: var(--white); }
+  .form-error { color: var(--red); font-size: .8rem; margin-top: 6px; }
+  .form-success { color: var(--green); font-size: .8rem; margin-top: 6px; }
+
+  /* ── AUTH ── */
+  .auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .auth-box {
+    width: 100%;
+    max-width: 420px;
+    padding: 0 24px;
+  }
+  .auth-logo {
+    font-family: 'Anton', sans-serif;
+    font-size: 3rem;
+    letter-spacing: 4px;
+    color: var(--gold);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .auth-logo span { color: var(--white); }
+  .auth-tagline {
+    text-align: center;
+    color: var(--muted);
+    font-size: .85rem;
+    margin-bottom: 32px;
+  }
+  .auth-tabs {
+    display: flex;
+    background: var(--pitch2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 24px;
+  }
+  .auth-tab {
+    flex: 1;
+    padding: 9px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Barlow', sans-serif;
+    font-weight: 700;
+    font-size: .82rem;
+    letter-spacing: .5px;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all .2s;
+  }
+  .auth-tab.active {
+    background: var(--gold);
+    color: #000;
+  }
+
+  /* ── PLAYER GRID ── */
+  .player-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+  }
+  .player-card {
+    background: var(--pitch2);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .15s;
+    position: relative;
+  }
+  .player-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+  .player-card.selected { border-color: var(--gold); background: rgba(232,200,64,.05); }
+  .player-card.locked { opacity: .35; cursor: not-allowed; }
+  .player-card.in-squad { border-color: var(--green); background: rgba(46,204,113,.05); }
+  .pc-name { font-weight: 600; font-size: .82rem; line-height: 1.3; }
+  .pc-price { font-family: 'Anton', sans-serif; font-size: 1.1rem; color: var(--gold); margin-top: 4px; }
+  .pc-team { font-size: .68rem; color: var(--muted); margin-top: 3px; }
+  .pc-pts { font-size: .75rem; color: var(--green); font-weight: 600; margin-top: 3px; }
+  .pc-remove {
+    position: absolute; top: 4px; right: 4px;
+    width: 18px; height: 18px;
+    background: var(--red);
+    border: none; border-radius: 50%;
+    color: #fff; font-size: .65rem;
+    cursor: pointer; line-height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity .15s;
+  }
+  .player-card:hover .pc-remove { opacity: 1; }
+
+  /* ── BUDGET BAR ── */
+  .budget-bar {
+    height: 6px;
+    background: var(--pitch3);
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  .budget-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .3s;
+    background: var(--gold);
+  }
+  .budget-fill.over { background: var(--red); }
+
+  /* ── LEAGUE PODIUM ── */
+  .podium {
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+  .podium-col { text-align: center; min-width: 120px; }
+  .podium-block {
+    border-radius: 8px 8px 0 0;
+    padding: 20px 16px 16px;
+    margin-bottom: 0;
+    position: relative;
+  }
+  .p1 .podium-block { background: linear-gradient(160deg, #b8922a 0%, #7a5a0a 100%); min-height: 110px; }
+  .p2 .podium-block { background: linear-gradient(160deg, #7a7a7a 0%, #4a4a4a 100%); min-height: 80px; }
+  .p3 .podium-block { background: linear-gradient(160deg, #8a5c34 0%, #5a3a18 100%); min-height: 60px; }
+  .podium-medal { font-size: 1.6rem; display: block; margin-bottom: 6px; }
+  .podium-pts { font-family: 'Anton', sans-serif; font-size: 2rem; color: #fff; letter-spacing: 1px; }
+  .podium-team { font-weight: 700; font-size: .85rem; color: rgba(255,255,255,.9); margin-top: 4px; }
+  .podium-user { font-size: .72rem; color: rgba(255,255,255,.6); }
+
+  /* ── FIXTURE CARDS ── */
+  .fixture-group { margin-bottom: 28px; }
+  .fixture-date-label {
+    font-family: 'Anton', sans-serif;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    color: var(--gold);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .fixture-date-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .fixture-row {
+    display: flex;
+    align-items: center;
+    background: var(--pitch2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 8px;
+    gap: 12px;
+    transition: border-color .2s;
+  }
+  .fixture-row:hover { border-color: var(--border2); }
+  .fixture-team-name { flex: 1; font-weight: 600; font-size: .92rem; }
+  .fixture-team-name.home { text-align: right; }
+  .fixture-vs {
+    font-family: 'Anton', sans-serif;
+    font-size: 1rem;
+    color: var(--gold);
+    letter-spacing: 2px;
+    min-width: 36px;
+    text-align: center;
+  }
+  .fixture-time { font-size: .75rem; color: var(--muted); min-width: 50px; text-align: right; }
+  .fixture-tw-badge {
+    font-size: .68rem;
+    background: rgba(224,53,53,.15);
+    border: 1px solid rgba(224,53,53,.3);
+    color: var(--red);
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .fixture-tw-badge.open {
+    background: rgba(46,204,113,.1);
+    border-color: rgba(46,204,113,.3);
+    color: var(--green);
+  }
+  .fixture-tw-badge.first {
+    background: rgba(232,200,64,.1);
+    border-color: rgba(232,200,64,.3);
+    color: var(--gold);
+  }
+
+  /* ── SCORING KEY ── */
+  .scoring-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 8px;
+  }
+  .score-chip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--pitch2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 9px 14px;
+  }
+  .score-action { font-size: .82rem; }
+  .score-pts { font-family: 'Anton', sans-serif; font-size: 1.3rem; }
+
+  /* ── ADMIN ── */
+  .admin-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .game-fixture-card {
+    background: var(--pitch2);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .game-fixture-card:hover, .game-fixture-card.open { border-color: var(--gold); }
+  .gfc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .gfc-title { font-weight: 700; font-size: .95rem; }
+  .gfc-teams { font-size: .8rem; color: var(--muted); margin-top: 3px; }
+  .gfc-body { display: none; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px; }
+  .gfc-body.show { display: block; }
+
+  .event-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 12px;
+    background: var(--pitch3);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: .82rem;
+  }
+  .event-pts { font-family: 'Anton', sans-serif; font-size: 1rem; }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.8);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 12px;
+    padding: 28px;
+    width: 100%;
+    max-width: 540px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+  }
+  .modal-title {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    color: var(--gold);
+    margin-bottom: 20px;
+  }
+  .modal-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    background: none; border: none;
+    color: var(--muted); font-size: 1.2rem;
+    cursor: pointer; transition: color .2s;
+  }
+  .modal-close:hover { color: var(--white); }
+
+  /* ── SEARCH ── */
+  .search-bar {
+    width: 100%;
+    background: var(--pitch2);
+    border: 1px solid var(--border);
+    color: var(--white);
+    border-radius: 6px;
+    padding: 9px 14px 9px 36px;
+    font-family: 'Barlow', sans-serif;
+    font-size: .88rem;
+    transition: border-color .2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a9e8a' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: 12px center;
+  }
+  .search-bar:focus { outline: none; border-color: var(--gold); }
+
+  .filter-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+
+  /* ── TRANSFERS ── */
+  .transfer-step {
+    background: var(--pitch2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    font-size: .82rem;
+  }
+  .transfer-step .step-num {
+    font-family: 'Anton', sans-serif;
+    font-size: 1.1rem;
+    color: var(--gold);
+    margin-right: 8px;
+  }
+
+  /* ── INFO CHIPS ── */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: .75rem;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .chip-gold { background: rgba(232,200,64,.1); border-color: rgba(232,200,64,.3); color: var(--gold); }
+  .chip-green { background: rgba(46,204,113,.1); border-color: rgba(46,204,113,.3); color: var(--green); }
+  .chip-red { background: rgba(224,53,53,.1); border-color: rgba(224,53,53,.3); color: var(--red); }
+  .chip-grey { background: rgba(138,158,138,.1); border-color: rgba(138,158,138,.3); color: var(--muted); }
+
+  /* ── GAME LOG ── */
+  .log-card {
+    background: var(--pitch2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .log-title { font-weight: 700; font-size: .9rem; color: var(--gold); margin-bottom: 8px; }
+  .log-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .log-chip {
+    font-size: .72rem;
+    padding: 3px 9px;
+    border-radius: 4px;
+    background: var(--pitch3);
+    border: 1px solid var(--border);
+  }
+  .log-chip.neg { background: rgba(224,53,53,.1); border-color: rgba(224,53,53,.2); color: var(--red); }
+
+  /* ── ADMIN PLAYER MANAGEMENT ── */
+  .player-row-edit {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--pitch2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+
+  /* ── NOTIFICATION ── */
+  #toast {
+    position: fixed;
+    bottom: 24px; right: 24px;
+    background: var(--card);
+    border: 1px solid var(--border2);
+    border-radius: 8px;
+    padding: 14px 20px;
+    font-size: .85rem;
+    font-weight: 600;
+    z-index: 9999;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all .3s;
+    max-width: 320px;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+  #toast.success { border-left: 3px solid var(--green); }
+  #toast.error { border-left: 3px solid var(--red); }
+  #toast.info { border-left: 3px solid var(--gold); }
+
+  /* ── RESPONSIVE ── */
+  @media(max-width: 640px) {
+    .nav-link span { display: none; }
+    .hero-title { font-size: 3.5rem; }
+    .hero-stats { gap: 24px; }
+    .podium { gap: 4px; }
+    .podium-col { min-width: 90px; }
+  }
+
+  /* ── UTILITY ── */
+  .mt-8 { margin-top: 8px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-24 { margin-top: 24px; }
+  .mb-8 { margin-bottom: 8px; }
+  .mb-16 { margin-bottom: 16px; }
+  .flex { display: flex; }
+  .flex-wrap { flex-wrap: wrap; }
+  .gap-8 { gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .items-center { align-items: center; }
+  .justify-between { justify-content: space-between; }
+  .text-muted { color: var(--muted); }
+  .text-gold { color: var(--gold); }
+  .text-green { color: var(--green); }
+  .text-red { color: var(--red); }
+  .text-sm { font-size: .8rem; }
+  .text-xs { font-size: .72rem; }
+  .bold { font-weight: 700; }
+  .w-full { width: 100%; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media(max-width:640px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- NAVBAR -->
+<nav id="navbar">
+  <div class="nav-inner">
+    <a class="nav-logo" onclick="navigate('home')">GFF<span>Fantasy</span></a>
+    <button class="nav-link active" id="nav-home" onclick="navigate('home')"><span>Home</span></button>
+    <button class="nav-link" id="nav-league" onclick="navigate('league')"><span>League</span></button>
+    <button class="nav-link" id="nav-fixtures" onclick="navigate('fixtures')"><span>Fixtures</span></button>
+    <button class="nav-link" id="nav-team" onclick="navigate('team')" style="display:none"><span>My Team</span></button>
+    <button class="nav-link" id="nav-transfers" onclick="navigate('transfers')" style="display:none"><span>Transfers</span></button>
+    <button class="nav-link" id="nav-admin" onclick="navigate('admin')" style="display:none"><span>Admin</span> <span class="nav-badge">⚙</span></button>
+    <div id="nav-user-area"></div>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- PAGE: HOME -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-home" class="page active">
+  <!-- Hero -->
+  <div id="hero">
+    <div class="pitch-lines"></div>
+    <div class="hero-content">
+      <div class="hero-eyebrow">⚽ The Official</div>
+      <div class="hero-title">GFF <span class="gold">Fantasy</span></div>
+      <div class="hero-sub">Pick your 8. Stay under £60m. Top the table.</div>
+      <div class="hero-stats" id="hero-stats"></div>
+      <div class="hero-cta" id="hero-cta"></div>
+      <div id="tw-banner-home"></div>
+    </div>
+  </div>
+
+  <div style="max-width:1280px;margin:0 auto;padding:0 24px;">
+    <!-- Scoring Key -->
+    <div class="section-header">
+      <div class="section-title">SCORING</div>
+      <div class="section-line"></div>
+      <div class="section-sub">Points per action</div>
+    </div>
+    <div class="scoring-grid">
+      <div class="score-chip"><span class="score-action">⚽ Goal</span><span class="score-pts pts-pos">+5</span></div>
+      <div class="score-chip"><span class="score-action">🅰️ Assist</span><span class="score-pts pts-pos">+3</span></div>
+      <div class="score-chip"><span class="score-action">🔑 Pre-assist</span><span class="score-pts pts-pos">+2</span></div>
+      <div class="score-chip"><span class="score-action">⏱ Full match</span><span class="score-pts pts-pos">+1</span></div>
+      <div class="score-chip"><span class="score-action">🧤 Clean sheet</span><span class="score-pts pts-pos">+2</span></div>
+      <div class="score-chip"><span class="score-action">🔄 Sub appearance</span><span class="score-pts pts-pos">+1</span></div>
+      <div class="score-chip"><span class="score-action">🏅 POTM #1</span><span class="score-pts pts-pos">+4</span></div>
+      <div class="score-chip"><span class="score-action">🏅 POTM #2</span><span class="score-pts pts-pos">+3</span></div>
+      <div class="score-chip"><span class="score-action">🟨 Yellow card</span><span class="score-pts pts-neg">-2</span></div>
+      <div class="score-chip"><span class="score-action">🟥 Red card</span><span class="score-pts pts-neg">-4</span></div>
+    </div>
+
+    <!-- Player Stats -->
+    <div class="section-header">
+      <div class="section-title">PLAYERS</div>
+      <div class="section-line"></div>
+      <div class="section-sub" id="player-count-label"></div>
+    </div>
+    <div class="filter-row">
+      <input class="search-bar" id="player-search" placeholder="Search players…" oninput="renderPlayerTable()" style="max-width:280px">
+      <button class="btn btn-ghost btn-sm" onclick="setPlayerSort('price')" id="sort-price">Sort: Price</button>
+      <button class="btn btn-ghost btn-sm" onclick="setPlayerSort('points')" id="sort-points">Sort: Points</button>
+      <select class="search-bar" id="filter-team" onchange="renderPlayerTable()" style="max-width:200px;padding-left:14px">
+        <option value="">All Teams</option>
+      </select>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl" id="player-table">
+        <thead>
+          <tr>
+            <th onclick="setPlayerSort('name')">Player</th>
+            <th>Real Team</th>
+            <th onclick="setPlayerSort('price')">Price</th>
+            <th>Apps</th>
+            <th>⚽</th>
+            <th>🅰️</th>
+            <th>🧤</th>
+            <th>🟨</th>
+            <th>🟥</th>
+            <th onclick="setPlayerSort('points')">Pts</th>
+          </tr>
+        </thead>
+        <tbody id="player-tbody"></tbody>
+      </table>
+    </div>
+
+    <!-- Recent Games -->
+    <div class="section-header" id="log-section" style="display:none">
+      <div class="section-title">RECENT GAMES</div>
+      <div class="section-line"></div>
+    </div>
+    <div id="game-log-list"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- PAGE: AUTH -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-auth" class="page">
+  <div class="auth-page">
+    <div class="auth-box">
+      <div class="auth-logo">GFF<span>F</span></div>
+      <div class="auth-tagline" id="auth-tagline">Sign in to manage your squad</div>
+      <div class="auth-tabs" id="auth-tabs">
+        <button class="auth-tab active" onclick="setAuthMode('login')">Sign In</button>
+        <button class="auth-tab" onclick="setAuthMode('register')">Register</button>
+      </div>
+      <div class="card">
+        <div class="form-group">
+          <label>Username</label>
+          <input id="auth-username" type="text" placeholder="Your username" onkeydown="if(event.key==='Enter')handleAuth()">
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input id="auth-password" type="password" placeholder="Your password" onkeydown="if(event.key==='Enter')handleAuth()">
+        </div>
+        <div class="form-group" id="auth-teamname-group" style="display:none">
+          <label>Team Name</label>
+          <input id="auth-teamname" type="text" placeholder="e.g. The Rovers" onkeydown="if(event.key==='Enter')handleAuth()">
+        </div>
+        <div id="auth-error" class="form-error" style="display:none"></div>
+        <div id="auth-first-note" style="display:none;margin-bottom:12px" class="chip chip-gold">
+          🏆 First signup becomes Admin
+        </div>
+        <button class="btn btn-primary w-full mt-8" id="auth-submit-btn" onclick="handleAuth()">Sign In</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- PAGE: MY TEAM -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-team" class="page">
+  <div class="section-header">
+    <div class="section-title">MY TEAM</div>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="grid-2 mb-16">
+    <div class="card">
+      <div class="card-title">Squad Overview</div>
+      <div class="flex gap-12 flex-wrap" id="team-meta"></div>
+      <div class="budget-bar mt-8"><div class="budget-fill" id="budget-fill" style="width:0%"></div></div>
+      <div class="flex justify-between mt-8 text-sm text-muted" id="budget-labels"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Transfer Info</div>
+      <div id="transfer-info-box"></div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <div class="section-title">CURRENT SQUAD</div>
+    <div class="section-line"></div>
+  </div>
+  <div class="player-grid" id="squad-grid"></div>
+
+  <div id="picker-section">
+    <div class="section-header">
+      <div class="section-title">ADD PLAYERS</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="filter-row">
+      <input class="search-bar" id="team-player-search" placeholder="Search…" oninput="renderTeamPicker()" style="max-width:240px">
+    </div>
+    <div class="player-grid" id="team-picker-grid"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- PAGE: TRANSFERS -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-transfers" class="page">
+  <div class="section-header">
+    <div class="section-title">TRANSFER MARKET</div>
+    <div class="section-line"></div>
+  </div>
+  <div id="transfer-window-alert" class="tw-banner mb-16" style="display:none"></div>
+  <div id="transfers-content"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- PAGE: LEAGUE -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-league" class="page">
+  <div class="section-header">
+    <div class="section-title">LEAGUE TABLE</div>
+    <div class="section-line"></div>
+  </div>
+  <div id="podium-area"></div>
+  <div class="card">
+    <div class="tbl-wrap">
+      <table class="tbl" id="league-table">
+        <thead><tr>
+          <th>#</th><th>Manager</th><th>Team</th><th>Squad</th><th>Transfers</th><th>Points</th>
+        </tr></thead>
+        <tbody id="league-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- PAGE: FIXTURES -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-fixtures" class="page">
+  <div class="section-header">
+    <div class="section-title">FIXTURES</div>
+    <div class="section-line"></div>
+    <div class="section-sub">Transfer window closes 1 hour before each game</div>
+  </div>
+  <div id="fixtures-list"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ -->
+<!-- PAGE: ADMIN -->
+<!-- ══════════════════════════════════════════════════════ -->
+<div id="page-admin" class="page">
+  <div class="section-header">
+    <div class="section-title">ADMIN PANEL</div>
+    <div class="section-line"></div>
+    <div class="section-sub" id="admin-stats-label"></div>
+  </div>
+
+  <div class="admin-tabs">
+    <button class="btn btn-primary btn-sm" onclick="setAdminTab('games')" id="atab-games">Log Games</button>
+    <button class="btn btn-ghost btn-sm" onclick="setAdminTab('players')" id="atab-players">Manage Players</button>
+    <button class="btn btn-ghost btn-sm" onclick="setAdminTab('users')" id="atab-users">Manage Users</button>
+  </div>
+
+  <!-- TAB: GAMES -->
+  <div id="atab-games-content">
+    <div class="card mb-16">
+      <div class="card-title">📋 Click a Fixture to Log Points</div>
+      <p class="text-sm text-muted mb-16">Select a game, then add events for players from those two teams.</p>
+      <div id="admin-fixtures-list"></div>
+    </div>
+  </div>
+
+  <!-- TAB: PLAYERS -->
+  <div id="atab-players-content" style="display:none">
+    <div class="card">
+      <div class="card-title">👤 Player Management</div>
+      <p class="text-sm text-muted mb-16">Add new players, edit prices, or assign to real teams.</p>
+      <button class="btn btn-primary btn-sm mb-16" onclick="openAddPlayerModal()">+ Add Player</button>
+      <div class="filter-row">
+        <input class="search-bar" id="admin-player-search" placeholder="Search players…" oninput="renderAdminPlayerList()" style="max-width:260px">
+      </div>
+      <div id="admin-player-list"></div>
+    </div>
+  </div>
+
+  <!-- TAB: USERS -->
+  <div id="atab-users-content" style="display:none">
+    <div class="card mb-16">
+      <div class="card-title">➕ Add New User</div>
+      <div class="grid-2">
+        <div class="form-group"><label>Username</label><input id="au-username" placeholder="username"></div>
+        <div class="form-group"><label>Password</label><input id="au-password" type="password" placeholder="password"></div>
+        <div class="form-group"><label>Team Name</label><input id="au-teamname" placeholder="Team name"></div>
+        <div class="form-group" style="display:flex;align-items:flex-end;gap:10px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0">
+            <input type="checkbox" id="au-admin"> Admin?
+          </label>
+          <button class="btn btn-green btn-sm" onclick="adminAddUser()">Add User</button>
+        </div>
+      </div>
+      <div id="au-msg"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">👥 All Users</div>
+      <div class="tbl-wrap">
+        <table class="tbl" id="users-table">
+          <thead><tr><th>Username</th><th>Team</th><th>Admin</th><th>Points</th><th>Squad</th><th>Transfers</th><th>Action</th></tr></thead>
+          <tbody id="users-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ MODALS ══════════════ -->
+
+<!-- Game Events Modal -->
+<div class="modal-overlay" id="modal-game">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-game')">✕</button>
+    <div class="modal-title" id="modal-game-title">LOG GAME</div>
+    <div id="modal-game-body"></div>
+  </div>
+</div>
+
+<!-- Add/Edit Player Modal -->
+<div class="modal-overlay" id="modal-player">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('modal-player')">✕</button>
+    <div class="modal-title" id="modal-player-title">PLAYER</div>
+    <div id="modal-player-body"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════════════════
+const REAL_TEAMS_DEFAULT = {
+  "Passion Athletic": ["Arthur Duckworth","Arthur Radcliffe","Hayato","Matthew","Henry Hague","Poppy"],
+  "Yard Argyle": ["Tom","Bertie","Kingsley","Kentaro","Johnnie","Aidan"],
+  "Window United": ["Milo","Will M","Freddie S-D","Will A","Ozan","Christian"],
+  "FC Split": ["James","Lewin","Seb","Teddy","Nik","Ranbir"],
+  "AFC Trant Room": ["Pholnart","Will R","Bryan","Aaron","Laurie","Jack"],
+  "Squash Court Albion": ["Rory","Alish","Will S","Deniz","Jago","Suri"],
+  "GFC": ["Hector","Zach","Anton","Brearley","Oscar","Aldus"],
+  "Window City": ["Will H","Archie Currie","Symington","Freddie Edis","Kevin","Robert","Lucas","Charlotte"],
+};
+
+const ALL_PLAYERS_DEFAULT = [
+  {name:"Arthur Duckworth",price:13.3},{name:"Lewin",price:13.1},{name:"Rory",price:11.4},
+  {name:"Will H",price:10.3},{name:"Bertie",price:9.4},{name:"Hector",price:9.1},
+  {name:"Will R",price:8.5},{name:"Alish",price:8.2},{name:"Archie Currie",price:8.0},
+  {name:"Milo",price:7.8},{name:"Symington",price:7.7},{name:"Tom",price:7.7},
+  {name:"Henry Hague",price:7.7},{name:"Zach",price:7.5},{name:"Will M",price:7.0},
+  {name:"Freddie S-D",price:7.0},{name:"Pholnart",price:7.0},{name:"Anton",price:6.8},
+  {name:"Will S",price:6.6},{name:"Bryan",price:6.4},{name:"Arthur Radcliffe",price:6.3},
+  {name:"Deniz",price:6.1},{name:"Aaron",price:5.9},{name:"Seb",price:5.7},
+  {name:"Kentaro",price:5.6},{name:"Laurie",price:5.6},{name:"Suri",price:5.5},
+  {name:"Kingsley",price:5.5},{name:"Brearley",price:5.5},{name:"Ranbir",price:5.4},
+  {name:"Will A",price:5.3},{name:"Matthew",price:5.1},{name:"Nik",price:5.0},
+  {name:"Hayato",price:5.0},{name:"Johnnie",price:5.0},{name:"Ozan",price:5.0},
+  {name:"James",price:4.8},{name:"Robert",price:4.8},{name:"Teddy",price:4.7},
+  {name:"Lucas",price:4.7},{name:"Freddie Edis",price:4.6},{name:"Christian",price:4.4},
+  {name:"Kevin",price:4.2},{name:"Jack",price:4.0},{name:"Charlotte",price:4.0},
+  {name:"Aldus",price:3.9},{name:"Jago",price:3.5},{name:"Oscar",price:3.5},
+  {name:"Poppy",price:3.0},{name:"Aidan",price:3.0},
+];
+
+// Transfer window fixtures: these are the first games of each 8-game cycle
+// Games: Apr22(3), Apr23(3), Apr24(3), Apr27(3), Apr28(3), Apr29(3), May4(3), May8(3) = 24 games total in 3 batches
+// Gameweeks: GW1-8 = Apr22 game 1 through Apr29 game 2; etc.
+// Transfer window deadline = 1 hour before the FIRST game of each new window
+// Window 1 = first game ever = Apr 22 18:20 → deadline Apr 22 17:20
+// Window 2 = 9th game = Apr 27 18:20 → deadline Apr 27 17:20
+// Window 3 = 17th game = May 4 18:20 → deadline May 4 17:20
+const TRANSFER_DEADLINES = [
+  { label: "Window 1 Open (Initial)", iso: "2026-04-22T17:20:00", game: "Passion Athletic vs FC Split (18:20)", window: 1 },
+  { label: "Window 2 Deadline", iso: "2026-04-27T17:20:00", game: "AFC Trant Room vs Window United (18:20)", window: 2 },
+  { label: "Window 3 Deadline", iso: "2026-05-04T17:20:00", game: "Squash Court Albion vs GFC (18:20)", window: 3 },
+];
+
+const FIXTURES = [
+  { date:"22nd April", gameIndex: 1, games:[
+    {home:"Passion Athletic",away:"FC Split",time:"18:20", iso:"2026-04-22T17:20:00", tw:true, twLabel:"Window 1"},
+    {home:"Yard Argyle",away:"Squash Court Albion",time:"18:40", iso:"2026-04-22T17:40:00"},
+    {home:"GFC",away:"Window City",time:"19:00", iso:"2026-04-22T18:00:00"},
+  ]},
+  { date:"23rd April", gameIndex: 4, games:[
+    {home:"AFC Trant Room",away:"Window City",time:"18:20", iso:"2026-04-23T17:20:00"},
+    {home:"Window United",away:"GFC",time:"18:40", iso:"2026-04-23T17:40:00"},
+    {home:"FC Split",away:"Squash Court Albion",time:"19:00", iso:"2026-04-23T18:00:00"},
+  ]},
+  { date:"24th April", gameIndex: 7, games:[
+    {home:"Passion Athletic",away:"Yard Argyle",time:"18:20", iso:"2026-04-24T17:20:00"},
+    {home:"Squash Court Albion",away:"Window United",time:"18:40", iso:"2026-04-24T17:40:00"},
+    {home:"FC Split",away:"GFC",time:"19:00", iso:"2026-04-24T18:00:00"},
+  ]},
+  { date:"27th April", gameIndex: 10, games:[
+    {home:"AFC Trant Room",away:"Window United",time:"18:20", iso:"2026-04-27T17:20:00", tw:true, twLabel:"Window 2"},
+    {home:"FC Split",away:"Yard Argyle",time:"18:40", iso:"2026-04-27T17:40:00"},
+    {home:"Squash Court Albion",away:"Passion Athletic",time:"19:00", iso:"2026-04-27T18:00:00"},
+  ]},
+  { date:"28th April", gameIndex: 13, games:[
+    {home:"Window United",away:"Passion Athletic",time:"18:20", iso:"2026-04-28T17:20:00"},
+    {home:"Yard Argyle",away:"AFC Trant Room",time:"18:40", iso:"2026-04-28T17:40:00"},
+    {home:"Squash Court Albion",away:"Window City",time:"19:00", iso:"2026-04-28T18:00:00"},
+  ]},
+  { date:"29th April", gameIndex: 16, games:[
+    {home:"AFC Trant Room",away:"GFC",time:"18:20", iso:"2026-04-29T17:20:00"},
+    {home:"Window United",away:"Window City",time:"18:40", iso:"2026-04-29T17:40:00"},
+    {home:"Passion Athletic",away:"AFC Trant Room",time:"19:00", iso:"2026-04-29T18:00:00"},
+  ]},
+  { date:"4th May", gameIndex: 19, games:[
+    {home:"Squash Court Albion",away:"GFC",time:"18:20", iso:"2026-05-04T17:20:00", tw:true, twLabel:"Window 3"},
+    {home:"FC Split",away:"Window City",time:"18:40", iso:"2026-05-04T17:40:00"},
+    {home:"Yard Argyle",away:"Window United",time:"19:00", iso:"2026-05-04T18:00:00"},
+  ]},
+  { date:"8th May", gameIndex: 22, games:[
+    {home:"Window City",away:"Passion Athletic",time:"18:20", iso:"2026-05-08T17:20:00"},
+    {home:"GFC",away:"Yard Argyle",time:"18:40", iso:"2026-05-08T17:40:00"},
+    {home:"FC Split",away:"AFC Trant Room",time:"19:00", iso:"2026-05-08T18:00:00"},
+  ]},
+];
+
+const KNOCKOUT = [
+  { date:"11th May", games:[
+    {home:"2nd Place",away:"5th Place",time:"TBC",label:"Quarter Final 1"},
+    {home:"3rd Place",away:"4th Place",time:"TBC",label:"Quarter Final 2"},
+  ]},
+  { date:"12th May", games:[
+    {home:"Q2 Winner",away:"Q1 Winner",time:"TBC",label:"Semi Final"},
+  ]},
+  { date:"13th May", games:[
+    {home:"?",away:"?",time:"TBC",label:"🏆 THE FINAL"},
+  ]},
+];
+
+const SCORING = {
+  "Goal":5,"Assist":3,"Pre-assist":2,"Full match":1,"Clean sheet":2,
+  "Sub appearance":1,"POTM #1":4,"POTM #2":3,"Yellow card":-2,"Red card":-4
+};
+
+const BUDGET = 60;
+const TEAM_SIZE = 8;
+const TRANSFERS_PER_WINDOW = 4;
+const GAMES_PER_WINDOW = 8;
+const STORAGE_KEY = "gff_v3";
+
+// ══════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════
+function defaultState() {
+  return {
+    users: {},
+    playerStats: {},
+    players: JSON.parse(JSON.stringify(ALL_PLAYERS_DEFAULT)),
+    realTeams: JSON.parse(JSON.stringify(REAL_TEAMS_DEFAULT)),
+    gameLog: [],
+    totalGamesLogged: 0,
+  };
+}
+
+let S = loadState();
+let currentUser = null;
+let playerSortKey = "price";
+let authMode = "login";
+let adminTab = "games";
+let transferOutPlayer = null;
+let editingPlayerId = null;
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (!s.players) s.players = JSON.parse(JSON.stringify(ALL_PLAYERS_DEFAULT));
+      if (!s.realTeams) s.realTeams = JSON.parse(JSON.stringify(REAL_TEAMS_DEFAULT));
+      return s;
+    }
+  } catch(e) {}
+  return defaultState();
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(S));
+}
+
+// ══════════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════════
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById('page-' + page);
+  if (pg) pg.classList.add('active');
+  const nl = document.getElementById('nav-' + page);
+  if (nl) nl.classList.add('active');
+  window.scrollTo(0,0);
+
+  // Render page-specific content
+  if (page === 'home') { renderHome(); }
+  if (page === 'league') { renderLeague(); }
+  if (page === 'fixtures') { renderFixtures(); }
+  if (page === 'team') { renderTeamPage(); }
+  if (page === 'transfers') { renderTransfersPage(); }
+  if (page === 'admin') { renderAdminPage(); }
+  if (page === 'auth') { renderAuthPage(); }
+}
+
+// ══════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════
+function getUser() { return currentUser ? S.users[currentUser] : null; }
+
+function getPlayerRealTeam(name) {
+  for (const [team, members] of Object.entries(S.realTeams || {}))
+    if (members.includes(name)) return team;
+  return "—";
+}
+
+function getPlayerPrice(name) {
+  const p = (S.players || []).find(x => x.name === name);
+  return p ? p.price : 0;
+}
+
+function squadCost(squad) {
+  return squad.reduce((s, n) => s + getPlayerPrice(n), 0);
+}
+
+function getPlayerStat(name) {
+  return S.playerStats[name] || { points:0, appearances:0, goals:0, assists:0, cleanSheets:0, yellowCards:0, redCards:0 };
+}
+
+function formatCountdown(ms) {
+  if (ms <= 0) return "CLOSED";
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  return `${h}h ${m}m ${s}s`;
+}
+
+function getNextDeadline() {
+  const now = Date.now();
+  // Find the next transfer window deadline
+  for (const dl of TRANSFER_DEADLINES) {
+    const t = new Date(dl.iso).getTime();
+    if (t > now) return { ...dl, ms: t - now, time: t };
+  }
+  return null;
+}
+
+function isTransferWindowOpen() {
+  const now = Date.now();
+  // Window is open if we're before the next deadline that hasn't started yet
+  // or between windows. Closed 1h before first game of each window.
+  // Window 1: open until Apr22 17:20
+  // After that: open again until Apr27 17:20 (window 2)
+  // etc.
+  const deadlines = TRANSFER_DEADLINES.map(d => new Date(d.iso).getTime());
+  const gameStartTimes = [
+    new Date("2026-04-22T18:20:00").getTime(),
+    new Date("2026-04-27T18:20:00").getTime(),
+    new Date("2026-05-04T18:20:00").getTime(),
+  ];
+  // Check: is now within 1 hour of any game start?
+  for (let i = 0; i < gameStartTimes.length; i++) {
+    const deadline = deadlines[i];
+    const gameStart = gameStartTimes[i];
+    if (now >= deadline && now <= gameStart) return false; // locked
+  }
+  return true;
+}
+
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => { t.className = ''; }, 3000);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+
+// ══════════════════════════════════════════════════════════
+//  AUTH
+// ══════════════════════════════════════════════════════════
+function setAuthMode(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && mode === 'login') || (i === 1 && mode === 'register'));
+  });
+  document.getElementById('auth-teamname-group').style.display = mode === 'register' ? '' : 'none';
+  document.getElementById('auth-submit-btn').textContent = mode === 'login' ? 'Sign In' : 'Create Team';
+  document.getElementById('auth-first-note').style.display =
+    (mode === 'register' && Object.keys(S.users).length === 0) ? '' : 'none';
+  document.getElementById('auth-error').style.display = 'none';
+}
+
+function renderAuthPage() {
+  document.getElementById('auth-first-note').style.display =
+    (authMode === 'register' && Object.keys(S.users).length === 0) ? '' : 'none';
+}
+
+function handleAuth() {
+  const username = document.getElementById('auth-username').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const teamName = document.getElementById('auth-teamname').value.trim();
+  const errEl = document.getElementById('auth-error');
+  errEl.style.display = 'none';
+
+  const showErr = (m) => { errEl.textContent = m; errEl.style.display = ''; };
+
+  if (!username || !password) return showErr('Fill in all fields.');
+
+  if (authMode === 'register') {
+    if (!teamName) return showErr('Enter a team name.');
+    if (S.users[username]) return showErr('Username already taken.');
+    const isFirst = Object.keys(S.users).length === 0;
+    S.users[username] = {
+      password, teamName, squad: [], points: 0,
+      isAdmin: isFirst,
+      transfers: TRANSFERS_PER_WINDOW,
+      windowsUsed: 0,
+    };
+    save();
+    currentUser = username;
+    updateNavAuth();
+    navigate('team');
+    toast(`Welcome, ${teamName}!${isFirst ? ' You are the Admin.' : ''}`, 'success');
+  } else {
+    const u = S.users[username];
+    if (!u || u.password !== password) return showErr('Invalid username or password.');
+    currentUser = username;
+    updateNavAuth();
+    navigate('home');
+    toast(`Welcome back, ${u.teamName}!`, 'info');
+  }
+  document.getElementById('auth-username').value = '';
+  document.getElementById('auth-password').value = '';
+  document.getElementById('auth-teamname').value = '';
+}
+
+function logout() {
+  currentUser = null;
+  updateNavAuth();
+  navigate('home');
+}
+
+function updateNavAuth() {
+  const u = getUser();
+  const navs = ['nav-team','nav-transfers','nav-admin'];
+  navs.forEach(id => document.getElementById(id).style.display = 'none');
+
+  if (u) {
+    document.getElementById('nav-team').style.display = '';
+    document.getElementById('nav-transfers').style.display = '';
+    if (u.isAdmin) document.getElementById('nav-admin').style.display = '';
+    document.getElementById('nav-user-area').innerHTML = `
+      <div class="nav-user-chip">
+        <div class="avatar">${u.teamName[0].toUpperCase()}</div>
+        <span>${u.teamName}</span>
+        <span style="color:var(--gold);font-weight:700">${u.points}pts</span>
+      </div>
+      <button class="btn-logout" onclick="logout()">Logout</button>
+    `;
+  } else {
+    document.getElementById('nav-user-area').innerHTML = `
+      <button class="btn btn-primary btn-sm" onclick="navigate('auth')" style="margin-left:12px">Sign In / Join</button>
+    `;
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  HOME PAGE
+// ══════════════════════════════════════════════════════════
+function renderHome() {
+  // Hero stats
+  document.getElementById('hero-stats').innerHTML = `
+    <div class="hstat"><div class="hstat-val">${Object.keys(S.users).length}</div><div class="hstat-lbl">Managers</div></div>
+    <div class="hstat"><div class="hstat-val">${S.totalGamesLogged}</div><div class="hstat-lbl">Games Logged</div></div>
+    <div class="hstat"><div class="hstat-val">${(S.players||ALL_PLAYERS_DEFAULT).length}</div><div class="hstat-lbl">Players</div></div>
+    <div class="hstat"><div class="hstat-val">£60m</div><div class="hstat-lbl">Budget</div></div>
+  `;
+
+  // CTA
+  const u = getUser();
+  document.getElementById('hero-cta').innerHTML = u
+    ? `<button class="btn btn-primary" onclick="navigate('team')">My Team →</button>
+       <button class="btn btn-outline" onclick="navigate('league')">View League</button>`
+    : `<button class="btn btn-primary" onclick="setAuthMode('register');navigate('auth')">Join Free</button>
+       <button class="btn btn-outline" onclick="navigate('fixtures')">View Fixtures</button>`;
+
+  // Transfer window banner
+  renderTWBanner();
+
+  // Player count label
+  document.getElementById('player-count-label').textContent = `${(S.players||ALL_PLAYERS_DEFAULT).length} players`;
+
+  // Populate team filter
+  const tf = document.getElementById('filter-team');
+  const teams = Object.keys(S.realTeams || REAL_TEAMS_DEFAULT);
+  tf.innerHTML = '<option value="">All Teams</option>' + teams.map(t => `<option>${t}</option>`).join('');
+
+  renderPlayerTable();
+
+  // Game log
+  const logSection = document.getElementById('log-section');
+  const logList = document.getElementById('game-log-list');
+  if (S.gameLog.length > 0) {
+    logSection.style.display = 'flex';
+    logList.innerHTML = [...S.gameLog].reverse().slice(0, 5).map(g => `
+      <div class="log-card">
+        <div class="log-title">🏟 ${g.fixture}</div>
+        <div class="log-chips">
+          ${g.events.map(ev => {
+            const pts = SCORING[ev.action] || 0;
+            return `<span class="log-chip ${pts < 0 ? 'neg' : ''}">${ev.player} – ${ev.action} (${pts > 0 ? '+' : ''}${pts})</span>`;
+          }).join('')}
+        </div>
+      </div>
+    `).join('');
+  } else {
+    logSection.style.display = 'none';
+    logList.innerHTML = '';
+  }
+}
+
+function renderTWBanner() {
+  const now = Date.now();
+  const next = getNextDeadline();
+  const open = isTransferWindowOpen();
+  const el = document.getElementById('tw-banner-home');
+  if (!el) return;
+
+  if (!next) {
+    el.innerHTML = `<div class="tw-banner open"><span class="tw-icon">✅</span><div class="tw-text"><div class="tw-title">Transfers Open</div><div class="tw-sub">All transfer windows have passed</div></div></div>`;
+    return;
+  }
+
+  const ms = next.ms;
+  el.innerHTML = `
+    <div class="tw-banner ${open ? 'open' : ''}">
+      <span class="tw-icon">${open ? '🟢' : '🔴'}</span>
+      <div class="tw-text">
+        <div class="tw-title">Transfer Window ${next.window} — ${open ? 'OPEN' : 'CLOSING SOON'}</div>
+        <div class="tw-sub">Deadline: 1h before ${next.game}</div>
+      </div>
+      <div class="tw-countdown ${open ? 'open' : ''}" id="tw-countdown">${formatCountdown(ms)}</div>
+    </div>
+  `;
+
+  clearInterval(window._twTimer);
+  window._twTimer = setInterval(() => {
+    const remaining = new Date(next.iso).getTime() - Date.now();
+    const el2 = document.getElementById('tw-countdown');
+    if (el2) el2.textContent = formatCountdown(remaining);
+    if (remaining <= 0) clearInterval(window._twTimer);
+  }, 1000);
+}
+
+// ══════════════════════════════════════════════════════════
+//  PLAYER TABLE
+// ══════════════════════════════════════════════════════════
+function setPlayerSort(key) {
+  playerSortKey = key;
+  document.getElementById('sort-price').className = `btn btn-sm ${key === 'price' ? 'btn-primary' : 'btn-ghost'}`;
+  document.getElementById('sort-points').className = `btn btn-sm ${key === 'points' ? 'btn-primary' : 'btn-ghost'}`;
+  renderPlayerTable();
+}
+
+function renderPlayerTable() {
+  const search = (document.getElementById('player-search')?.value || '').toLowerCase();
+  const filterTeam = document.getElementById('filter-team')?.value || '';
+  const players = (S.players || ALL_PLAYERS_DEFAULT).filter(p => {
+    const rt = getPlayerRealTeam(p.name);
+    return p.name.toLowerCase().includes(search) && (!filterTeam || rt === filterTeam);
+  }).sort((a, b) => {
+    const sa = getPlayerStat(a.name), sb = getPlayerStat(b.name);
+    if (playerSortKey === 'points') return (sb.points||0) - (sa.points||0);
+    if (playerSortKey === 'name') return a.name.localeCompare(b.name);
+    return b.price - a.price;
+  });
+
+  const tbody = document.getElementById('player-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = players.map(p => {
+    const st = getPlayerStat(p.name);
+    const rt = getPlayerRealTeam(p.name);
+    const pts = st.points || 0;
+    return `<tr>
+      <td><span class="bold">${p.name}</span></td>
+      <td><span class="team-pill">${rt}</span></td>
+      <td><span class="price-tag">£${p.price}m</span></td>
+      <td>${st.appearances||0}</td>
+      <td>${st.goals||0}</td>
+      <td>${st.assists||0}</td>
+      <td>${st.cleanSheets||0}</td>
+      <td>${st.yellowCards||0}</td>
+      <td>${st.redCards||0}</td>
+      <td><span class="${pts < 0 ? 'pts-neg' : 'pts-pos'}">${pts}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+//  MY TEAM PAGE
+// ══════════════════════════════════════════════════════════
+function renderTeamPage() {
+  const u = getUser();
+  if (!u) { navigate('auth'); return; }
+  const squad = u.squad || [];
+  const cost = squadCost(squad);
+  const rem = BUDGET - cost;
+  const pct = Math.min(100, (cost / BUDGET) * 100);
+
+  document.getElementById('team-meta').innerHTML = `
+    <span class="chip chip-gold">👥 ${squad.length}/${TEAM_SIZE} players</span>
+    <span class="chip chip-green">⭐ ${u.points} pts</span>
+    <span class="chip ${u.transfers > 0 ? 'chip-green' : 'chip-red'}">🔄 ${u.transfers} transfers left</span>
+  `;
+  document.getElementById('budget-fill').style.width = pct + '%';
+  document.getElementById('budget-fill').className = `budget-fill${cost > BUDGET ? ' over' : ''}`;
+  document.getElementById('budget-labels').innerHTML = `<span>£${cost.toFixed(1)}m used</span><span>£${rem.toFixed(1)}m left of £${BUDGET}m</span>`;
+
+  // Transfer info
+  const nextW = Math.floor(S.totalGamesLogged / GAMES_PER_WINDOW) + 1;
+  document.getElementById('transfer-info-box').innerHTML = `
+    <p class="text-sm text-muted mb-8">Transfers reset every ${GAMES_PER_WINDOW} games. You get ${TRANSFERS_PER_WINDOW} free per window.</p>
+    <p class="text-sm mb-8">Games logged: <strong>${S.totalGamesLogged}</strong> | Window: <strong>${nextW}</strong></p>
+    <div class="mt-8">
+      <button class="btn btn-outline btn-sm" onclick="navigate('transfers')">Go to Transfer Market →</button>
+    </div>
+  `;
+
+  // Squad grid
+  const sg = document.getElementById('squad-grid');
+  if (squad.length === 0) {
+    sg.innerHTML = `<p class="text-muted text-sm" style="grid-column:1/-1;padding:20px 0">No players yet — add from below!</p>`;
+  } else {
+    sg.innerHTML = squad.map(name => {
+      const pl = (S.players||[]).find(p => p.name === name) || {price:0};
+      const st = getPlayerStat(name);
+      const rt = getPlayerRealTeam(name);
+      return `<div class="player-card in-squad">
+        <button class="pc-remove" onclick="removeFromSquad('${name.replace(/'/g,"\\'")}')">✕</button>
+        <div class="pc-name">${name}</div>
+        <div class="pc-price">£${pl.price}m</div>
+        <div class="pc-team">${rt}</div>
+        <div class="pc-pts">${st.points||0} pts</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Picker
+  const pickerSection = document.getElementById('picker-section');
+  if (squad.length >= TEAM_SIZE) {
+    pickerSection.style.display = 'none';
+  } else {
+    pickerSection.style.display = '';
+    renderTeamPicker();
+  }
+}
+
+function renderTeamPicker() {
+  const u = getUser();
+  if (!u) return;
+  const squad = u.squad || [];
+  const cost = squadCost(squad);
+  const search = (document.getElementById('team-player-search')?.value || '').toLowerCase();
+
+  const grid = document.getElementById('team-picker-grid');
+  const players = (S.players || ALL_PLAYERS_DEFAULT)
+    .filter(p => !squad.includes(p.name) && p.name.toLowerCase().includes(search));
+
+  grid.innerHTML = players.map(p => {
+    const canAfford = cost + p.price <= BUDGET;
+    const st = getPlayerStat(p.name);
+    const rt = getPlayerRealTeam(p.name);
+    return `<div class="player-card ${!canAfford ? 'locked' : ''}" onclick="${canAfford ? `addToSquad('${p.name.replace(/'/g,"\\'")}')` : ''}">
+      <div class="pc-name">${p.name}</div>
+      <div class="pc-price">£${p.price}m</div>
+      <div class="pc-team">${rt}</div>
+      <div class="pc-pts">${st.points||0} pts</div>
+      ${!canAfford ? '<div class="text-red text-xs" style="margin-top:4px">Over budget</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function addToSquad(name) {
+  const u = getUser();
+  if (!u) return;
+  if (u.squad.length >= TEAM_SIZE) { toast('Squad full!', 'error'); return; }
+  const cost = squadCost(u.squad) + getPlayerPrice(name);
+  if (cost > BUDGET) { toast('Over budget!', 'error'); return; }
+  u.squad.push(name);
+  save();
+  renderTeamPage();
+  toast(`${name} added to squad!`);
+}
+
+function removeFromSquad(name) {
+  const u = getUser();
+  if (!u) return;
+  u.squad = u.squad.filter(n => n !== name);
+  save();
+  renderTeamPage();
+  toast(`${name} removed.`, 'info');
+}
+
+// ══════════════════════════════════════════════════════════
+//  TRANSFERS PAGE
+// ══════════════════════════════════════════════════════════
+function renderTransfersPage() {
+  const u = getUser();
+  if (!u) { navigate('auth'); return; }
+  const open = isTransferWindowOpen();
+  const alertEl = document.getElementById('transfer-window-alert');
+  alertEl.style.display = '';
+  alertEl.className = `tw-banner mb-16 ${open ? 'open' : ''}`;
+  alertEl.innerHTML = `
+    <span class="tw-icon">${open ? '🟢' : '🔴'}</span>
+    <div class="tw-text">
+      <div class="tw-title">Transfer Window ${open ? 'OPEN' : 'CLOSED'}</div>
+      <div class="tw-sub">${open ? `You have ${u.transfers} free transfer${u.transfers !== 1 ? 's' : ''} remaining this window.` : 'Window closes 1 hour before the next game. Come back after kickoff.'}</div>
+    </div>
+    <span class="chip ${u.transfers > 0 ? 'chip-green' : 'chip-red'}">${u.transfers} transfers left</span>
+  `;
+
+  const con = document.getElementById('transfers-content');
+  const squad = u.squad || [];
+
+  if (!transferOutPlayer) {
+    con.innerHTML = `
+      <div class="card">
+        <div class="card-title">Step 1 — Select player to transfer OUT</div>
+        <div class="player-grid">
+          ${squad.map(name => {
+            const pl = (S.players||[]).find(p => p.name === name) || {price:0};
+            const st = getPlayerStat(name);
+            return `<div class="player-card" onclick="selectTransferOut('${name.replace(/'/g,"\\'")}')">
+              <div class="pc-name">${name}</div>
+              <div class="pc-price">£${pl.price}m</div>
+              <div class="pc-team">${getPlayerRealTeam(name)}</div>
+              <div class="pc-pts">${st.points||0} pts</div>
+              <div class="text-red text-xs" style="margin-top:4px">Transfer out ↑</div>
+            </div>`;
+          }).join('')}
+        </div>
+        ${squad.length === 0 ? '<p class="text-muted text-sm">No players in squad yet. Build your team first.</p>' : ''}
+      </div>
+    `;
+  } else {
+    const currentCost = squadCost(squad);
+    const outPrice = getPlayerPrice(transferOutPlayer);
+    const budgetWithout = currentCost - outPrice;
+
+    const available = (S.players||ALL_PLAYERS_DEFAULT).filter(p => {
+      if (squad.includes(p.name)) return false;
+      return budgetWithout + p.price <= BUDGET;
+    });
+
+    con.innerHTML = `
+      <div class="card mb-16">
+        <div class="card-title">Transferring out: <span style="color:var(--white)">${transferOutPlayer}</span></div>
+        <button class="btn btn-ghost btn-sm" onclick="cancelTransfer()">← Cancel</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Step 2 — Select replacement (Budget: £${(BUDGET - budgetWithout).toFixed(1)}m max)</div>
+        <div class="filter-row">
+          <input class="search-bar" id="transfer-search" placeholder="Search…" oninput="filterTransferIn()" style="max-width:240px">
+        </div>
+        <div class="player-grid" id="transfer-in-grid">
+          ${renderTransferInGrid(available)}
+        </div>
+      </div>
+    `;
+  }
+}
+
+function renderTransferInGrid(players) {
+  return players.map(p => {
+    const st = getPlayerStat(p.name);
+    return `<div class="player-card" onclick="confirmTransfer('${p.name.replace(/'/g,"\\'")}')">
+      <div class="pc-name">${p.name}</div>
+      <div class="pc-price">£${p.price}m</div>
+      <div class="pc-team">${getPlayerRealTeam(p.name)}</div>
+      <div class="pc-pts">${st.points||0} pts</div>
+      <div class="text-green text-xs" style="margin-top:4px">Transfer in ↓</div>
+    </div>`;
+  }).join('');
+}
+
+function filterTransferIn() {
+  const u = getUser();
+  if (!u || !transferOutPlayer) return;
+  const sq = u.squad || [];
+  const outPrice = getPlayerPrice(transferOutPlayer);
+  const budgetWithout = squadCost(sq) - outPrice;
+  const search = (document.getElementById('transfer-search')?.value || '').toLowerCase();
+  const available = (S.players||ALL_PLAYERS_DEFAULT).filter(p =>
+    !sq.includes(p.name) && budgetWithout + p.price <= BUDGET && p.name.toLowerCase().includes(search)
+  );
+  const grid = document.getElementById('transfer-in-grid');
+  if (grid) grid.innerHTML = renderTransferInGrid(available);
+}
+
+function selectTransferOut(name) {
+  const u = getUser();
+  if (u.transfers <= 0) { toast('No transfers remaining this window!', 'error'); return; }
+  if (!isTransferWindowOpen()) { toast('Transfer window is currently closed!', 'error'); return; }
+  transferOutPlayer = name;
+  renderTransfersPage();
+}
+
+function cancelTransfer() {
+  transferOutPlayer = null;
+  renderTransfersPage();
+}
+
+function confirmTransfer(inPlayer) {
+  const u = getUser();
+  if (!u || !transferOutPlayer) return;
+  const newSquad = u.squad.map(n => n === transferOutPlayer ? inPlayer : n);
+  const cost = squadCost(newSquad);
+  if (cost > BUDGET) { toast('Over budget!', 'error'); return; }
+  u.squad = newSquad;
+  u.transfers = Math.max(0, u.transfers - 1);
+  save();
+  toast(`✅ ${transferOutPlayer} → ${inPlayer}`, 'success');
+  transferOutPlayer = null;
+  renderTransfersPage();
+  updateNavAuth();
+}
+
+// ══════════════════════════════════════════════════════════
+//  LEAGUE
+// ══════════════════════════════════════════════════════════
+function renderLeague() {
+  const table = Object.entries(S.users)
+    .map(([un, u]) => ({ username: un, teamName: u.teamName, points: u.points, squad: (u.squad||[]).length, transfers: u.transfers }))
+    .sort((a, b) => b.points - a.points);
+
+  // Podium
+  const pa = document.getElementById('podium-area');
+  if (table.length >= 3) {
+    pa.innerHTML = `<div class="podium">
+      <div class="podium-col p2">
+        <div class="podium-block">
+          <span class="podium-medal">🥈</span>
+          <div class="podium-pts">${table[1].points}</div>
+          <div class="podium-team">${table[1].teamName}</div>
+          <div class="podium-user">@${table[1].username}</div>
+        </div>
+      </div>
+      <div class="podium-col p1">
+        <div class="podium-block">
+          <span class="podium-medal">🥇</span>
+          <div class="podium-pts">${table[0].points}</div>
+          <div class="podium-team">${table[0].teamName}</div>
+          <div class="podium-user">@${table[0].username}</div>
+        </div>
+      </div>
+      <div class="podium-col p3">
+        <div class="podium-block">
+          <span class="podium-medal">🥉</span>
+          <div class="podium-pts">${table[2].points}</div>
+          <div class="podium-team">${table[2].teamName}</div>
+          <div class="podium-user">@${table[2].username}</div>
+        </div>
+      </div>
+    </div>`;
+  } else pa.innerHTML = '';
+
+  const tbody = document.getElementById('league-tbody');
+  if (table.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">No managers yet — be the first!</td></tr>`;
+  } else {
+    tbody.innerHTML = table.map((row, i) => `
+      <tr style="${row.username === currentUser ? 'background:rgba(232,200,64,.04)' : ''}">
+        <td><span class="${i < 3 ? `rank-${i+1}` : ''}">${i+1}</span></td>
+        <td>${row.username}${row.username === currentUser ? ' ★' : ''}</td>
+        <td class="bold">${row.teamName}</td>
+        <td>${row.squad}/${TEAM_SIZE}</td>
+        <td>${row.transfers}</td>
+        <td><span class="pts-pos">${row.points}</span></td>
+      </tr>
+    `).join('');
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//  FIXTURES
+// ══════════════════════════════════════════════════════════
+function renderFixtures() {
+  const now = Date.now();
+  const list = document.getElementById('fixtures-list');
+  let html = '';
+  let gameNum = 0;
+
+  FIXTURES.forEach(day => {
+    html += `<div class="fixture-group"><div class="fixture-date-label">${day.date}</div>`;
+    day.games.forEach(g => {
+      gameNum++;
+      const deadline = new Date(g.iso).getTime();
+      const isPast = now > deadline;
+      let badge = '';
+      if (g.tw) {
+        badge = `<span class="fixture-tw-badge first">🔑 ${g.twLabel} opens</span>`;
+      }
+      html += `
+        <div class="fixture-row">
+          <span class="fixture-team-name home">${g.home}</span>
+          <span class="fixture-vs">VS</span>
+          <span class="fixture-team-name">${g.away}</span>
+          <span class="fixture-time">${g.time}</span>
+          ${badge}
+        </div>`;
+    });
+    html += `</div>`;
+  });
+
+  // Knockout
+  html += `<div class="fixture-group" style="border-top:1px solid var(--border);margin-top:20px;padding-top:20px">
+    <div class="fixture-date-label" style="color:var(--gold)">🏆 KNOCKOUT ROUNDS</div>`;
+  KNOCKOUT.forEach(day => {
+    html += `<div style="margin-bottom:16px"><div class="text-muted text-sm bold mb-8">${day.date}</div>`;
+    day.games.forEach(g => {
+      html += `
+        <div class="fixture-row" style="${g.label.includes('FINAL') ? 'border-color:var(--gold)' : ''}">
+          <span class="fixture-team-name home">${g.home}</span>
+          <span class="fixture-vs">${g.label.includes('FINAL') ? '🏆' : 'VS'}</span>
+          <span class="fixture-team-name">${g.away}</span>
+          <span class="fixture-time text-muted">${g.time}</span>
+          <span class="fixture-tw-badge open">${g.label}</span>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  // Transfer window info box
+  html += `<div class="card mt-24">
+    <div class="card-title">⏰ Transfer Window Schedule</div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Window</th><th>Deadline</th><th>First Game</th></tr></thead>
+      <tbody>
+        ${TRANSFER_DEADLINES.map(d => {
+          const past = Date.now() > new Date(d.iso).getTime();
+          return `<tr>
+            <td>${d.label}</td>
+            <td style="color:${past ? 'var(--muted)' : 'var(--red)'}; font-weight:600">${d.iso.replace('T', ' ').replace(':00','')}</td>
+            <td class="text-muted">${d.game}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+  </div>`;
+
+  list.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════
+//  ADMIN PAGE
+// ══════════════════════════════════════════════════════════
+function renderAdminPage() {
+  const u = getUser();
+  if (!u?.isAdmin) { navigate('home'); return; }
+  document.getElementById('admin-stats-label').textContent =
+    `${S.totalGamesLogged} games logged · ${Math.floor(S.totalGamesLogged / GAMES_PER_WINDOW)} windows complete`;
+  renderAdminTab();
+}
+
+function setAdminTab(tab) {
+  adminTab = tab;
+  ['games','players','users'].forEach(t => {
+    document.getElementById(`atab-${t}`).className = `btn btn-sm ${t === tab ? 'btn-primary' : 'btn-ghost'}`;
+    document.getElementById(`atab-${t}-content`).style.display = t === tab ? '' : 'none';
+  });
+  renderAdminTab();
+}
+
+function renderAdminTab() {
+  if (adminTab === 'games') renderAdminGames();
+  if (adminTab === 'players') renderAdminPlayerList();
+  if (adminTab === 'users') renderAdminUsers();
+}
+
+// ── ADMIN: GAME FIXTURES ──
+function renderAdminGames() {
+  const container = document.getElementById('admin-fixtures-list');
+  let html = '';
+  let gameNum = 0;
+
+  FIXTURES.forEach((day, di) => {
+    html += `<div style="margin-bottom:24px"><div class="fixture-date-label">${day.date}</div>`;
+    day.games.forEach((g, gi) => {
+      gameNum++;
+      const id = `game-${di}-${gi}`;
+      const logged = S.gameLog.filter(l => l.homeTeam === g.home && l.awayTeam === g.away).length;
+      html += `
+        <div class="game-fixture-card" id="card-${id}" onclick="toggleGameCard('${id}','${g.home}','${g.away}','${g.date||day.date} ${g.time}')">
+          <div class="gfc-header">
+            <div>
+              <div class="gfc-title">${g.home} vs ${g.away}</div>
+              <div class="gfc-teams">${day.date} · ${g.time}</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              ${logged > 0 ? `<span class="chip chip-green">✅ ${logged} logged</span>` : '<span class="chip chip-grey">Not logged</span>'}
+              <span style="color:var(--muted);font-size:1.2rem">▾</span>
+            </div>
+          </div>
+          <div class="gfc-body" id="body-${id}"></div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+  container.innerHTML = html;
+}
+
+let openGameCard = null;
+
+function toggleGameCard(id, home, away, label) {
+  const body = document.getElementById('body-' + id);
+  const card = document.getElementById('card-' + id);
+  if (openGameCard && openGameCard !== id) {
+    const prev = document.getElementById('body-' + openGameCard);
+    if (prev) { prev.classList.remove('show'); document.getElementById('card-' + openGameCard)?.classList.remove('open'); }
+  }
+  if (body.classList.contains('show')) {
+    body.classList.remove('show');
+    card.classList.remove('open');
+    openGameCard = null;
+  } else {
+    body.classList.add('show');
+    card.classList.add('open');
+    openGameCard = id;
+    renderGameEventForm(body, id, home, away, label);
+  }
+}
+
+function renderGameEventForm(container, id, home, away, label) {
+  // Players from both teams
+  const homePlayers = (S.realTeams[home] || []);
+  const awayPlayers = (S.realTeams[away] || []);
+  const allMatchPlayers = [...homePlayers, ...awayPlayers];
+
+  // Current events for this session
+  const sessionKey = `_session_${id}`;
+  if (!window._gameSession) window._gameSession = {};
+  if (!window._gameSession[sessionKey]) window._gameSession[sessionKey] = [];
+  const events = window._gameSession[sessionKey];
+
+  container.innerHTML = `
+    <div class="grid-2 mb-16" style="gap:12px">
+      <div>
+        <div class="text-xs text-muted bold mb-8">${home}</div>
+        ${homePlayers.length ? homePlayers.map(n => `<div class="text-sm mb-4" style="padding:5px 8px;background:var(--pitch3);border-radius:4px">${n}</div>`).join('') : '<div class="text-muted text-xs">No players assigned</div>'}
+      </div>
+      <div>
+        <div class="text-xs text-muted bold mb-8">${away}</div>
+        ${awayPlayers.length ? awayPlayers.map(n => `<div class="text-sm mb-4" style="padding:5px 8px;background:var(--pitch3);border-radius:4px">${n}</div>`).join('') : '<div class="text-muted text-xs">No players assigned</div>'}
+      </div>
+    </div>
+
+    <div style="background:var(--pitch3);border-radius:8px;padding:16px;margin-bottom:16px">
+      <div class="bold text-sm mb-12">Add Event</div>
+      <div class="grid-2" style="gap:10px">
+        <div class="form-group" style="margin-bottom:0">
+          <label>Team</label>
+          <select id="team-sel-${id}" onchange="updatePlayerSel('${id}','${home}','${away}')">
+            <option value="${home}">${home}</option>
+            <option value="${away}">${away}</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Player</label>
+          <select id="player-sel-${id}">
+            ${homePlayers.map(n => `<option value="${n}">${n}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Action</label>
+          <select id="action-sel-${id}">
+            ${Object.entries(SCORING).map(([a,p]) => `<option value="${a}">${a} (${p > 0 ? '+' : ''}${p})</option>`).join('')}
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="btn btn-green w-full" onclick="addGameEvent('${id}')">+ Add Event</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="events-list-${id}" class="mb-16">
+      ${renderEventsList(events, id)}
+    </div>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="submitGameLog('${id}','${home}','${away}','${label}')" ${events.length === 0 ? 'disabled' : ''}>
+        Submit Game (${events.length} events)
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="clearGameSession('${id}')">Clear Events</button>
+    </div>
+    <div id="game-msg-${id}" class="mt-8"></div>
+  `;
+}
+
+function updatePlayerSel(id, home, away) {
+  const teamSel = document.getElementById(`team-sel-${id}`);
+  const playerSel = document.getElementById(`player-sel-${id}`);
+  const team = teamSel.value;
+  const players = S.realTeams[team === home ? home : away] || [];
+  playerSel.innerHTML = players.map(n => `<option value="${n}">${n}</option>`).join('');
+}
+
+function renderEventsList(events, id) {
+  if (events.length === 0) return '<div class="text-muted text-sm">No events added yet.</div>';
+  return events.map((ev, i) => {
+    const pts = SCORING[ev.action] || 0;
+    return `<div class="event-item">
+      <span>${ev.player} — <strong>${ev.action}</strong></span>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="event-pts ${pts < 0 ? 'pts-neg' : 'pts-pos'}">${pts > 0 ? '+' : ''}${pts}</span>
+        <button class="btn btn-xs btn-red" onclick="removeGameEvent('${id}',${i})">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function addGameEvent(id) {
+  const playerSel = document.getElementById(`player-sel-${id}`);
+  const actionSel = document.getElementById(`action-sel-${id}`);
+  if (!playerSel.value) return;
+  const sessionKey = `_session_${id}`;
+  if (!window._gameSession) window._gameSession = {};
+  if (!window._gameSession[sessionKey]) window._gameSession[sessionKey] = [];
+  window._gameSession[sessionKey].push({ player: playerSel.value, action: actionSel.value });
+  document.getElementById(`events-list-${id}`).innerHTML = renderEventsList(window._gameSession[sessionKey], id);
+  // Update submit button
+  const btn = document.querySelector(`#body-${id} .btn-primary`);
+  if (btn) { btn.textContent = `Submit Game (${window._gameSession[sessionKey].length} events)`; btn.disabled = false; }
+}
+
+function removeGameEvent(id, index) {
+  const sessionKey = `_session_${id}`;
+  window._gameSession[sessionKey].splice(index, 1);
+  const events = window._gameSession[sessionKey];
+  document.getElementById(`events-list-${id}`).innerHTML = renderEventsList(events, id);
+  const btn = document.querySelector(`#body-${id} .btn-primary`);
+  if (btn) { btn.textContent = `Submit Game (${events.length} events)`; btn.disabled = events.length === 0; }
+}
+
+function clearGameSession(id) {
+  if (window._gameSession) window._gameSession[`_session_${id}`] = [];
+  const evList = document.getElementById(`events-list-${id}`);
+  if (evList) evList.innerHTML = '<div class="text-muted text-sm">No events added yet.</div>';
+}
+
+function submitGameLog(id, home, away, label) {
+  const sessionKey = `_session_${id}`;
+  const events = window._gameSession?.[sessionKey] || [];
+  if (events.length === 0) return;
+
+  // Update player stats
+  for (const ev of events) {
+    if (!S.playerStats[ev.player]) S.playerStats[ev.player] = { points:0, appearances:0, goals:0, assists:0, cleanSheets:0, yellowCards:0, redCards:0 };
+    const st = S.playerStats[ev.player];
+    const pts = SCORING[ev.action] || 0;
+    st.points += pts;
+    if (ev.action === 'Goal') st.goals++;
+    if (ev.action === 'Assist') st.assists++;
+    if (ev.action === 'Clean sheet') st.cleanSheets++;
+    if (ev.action === 'Yellow card') st.yellowCards++;
+    if (ev.action === 'Red card') st.redCards++;
+    if (ev.action === 'Full match' || ev.action === 'Sub appearance') st.appearances++;
+  }
+
+  // Update fantasy team points
+  for (const [, u] of Object.entries(S.users)) {
+    for (const ev of events) {
+      if ((u.squad||[]).includes(ev.player)) {
+        u.points += (SCORING[ev.action] || 0);
+      }
+    }
+  }
+
+  S.gameLog.push({ fixture: label, homeTeam: home, awayTeam: away, events: [...events] });
+  S.totalGamesLogged++;
+
+  // Check transfer window reset
+  const prev = Math.floor((S.totalGamesLogged - 1) / GAMES_PER_WINDOW);
+  const next = Math.floor(S.totalGamesLogged / GAMES_PER_WINDOW);
+  if (next > prev) {
+    for (const u of Object.values(S.users)) u.transfers = TRANSFERS_PER_WINDOW;
+    toast(`🔄 Transfer window reset! All managers get ${TRANSFERS_PER_WINDOW} free transfers.`, 'info');
+  }
+
+  save();
+  window._gameSession[sessionKey] = [];
+  document.getElementById(`game-msg-${id}`).innerHTML = `<span class="form-success">✅ Game logged! ${events.length} events recorded.</span>`;
+  document.getElementById('admin-stats-label').textContent =
+    `${S.totalGamesLogged} games logged · ${Math.floor(S.totalGamesLogged / GAMES_PER_WINDOW)} windows complete`;
+
+  // Re-render the card to show as logged
+  renderAdminGames();
+  updateNavAuth();
+}
+
+// ── ADMIN: PLAYER MANAGEMENT ──
+function renderAdminPlayerList() {
+  const search = (document.getElementById('admin-player-search')?.value || '').toLowerCase();
+  const list = document.getElementById('admin-player-list');
+  const players = (S.players || []).filter(p => p.name.toLowerCase().includes(search));
+  list.innerHTML = players.map(p => {
+    const rt = getPlayerRealTeam(p.name);
+    return `<div class="player-row-edit">
+      <div>
+        <div class="bold text-sm">${p.name}</div>
+        <div class="text-xs text-muted">${rt} · £${p.price}m</div>
+      </div>
+      <button class="btn btn-ghost btn-xs" onclick="openEditPlayerModal('${p.name.replace(/'/g,"\\'")}')">Edit</button>
+      <button class="btn btn-red btn-xs" onclick="adminRemovePlayer('${p.name.replace(/'/g,"\\'")}')">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+function openAddPlayerModal() {
+  editingPlayerId = null;
+  const teams = Object.keys(S.realTeams || {});
+  document.getElementById('modal-player-title').textContent = 'ADD PLAYER';
+  document.getElementById('modal-player-body').innerHTML = `
+    <div class="form-group"><label>Name</label><input id="ep-name" placeholder="Player name"></div>
+    <div class="form-group"><label>Price (£m)</label><input id="ep-price" type="number" step="0.1" placeholder="5.0"></div>
+    <div class="form-group"><label>Real Team</label>
+      <select id="ep-team">
+        <option value="">— No team —</option>
+        ${teams.map(t => `<option value="${t}">${t}</option>`).join('')}
+      </select>
+    </div>
+    <div id="ep-msg"></div>
+    <button class="btn btn-primary w-full mt-16" onclick="savePlayerModal()">Add Player</button>
+  `;
+  openModal('modal-player');
+}
+
+function openEditPlayerModal(name) {
+  editingPlayerId = name;
+  const pl = (S.players||[]).find(p => p.name === name) || {};
+  const rt = getPlayerRealTeam(name);
+  const teams = Object.keys(S.realTeams || {});
+  document.getElementById('modal-player-title').textContent = 'EDIT PLAYER';
+  document.getElementById('modal-player-body').innerHTML = `
+    <div class="form-group"><label>Name</label><input id="ep-name" value="${name}"></div>
+    <div class="form-group"><label>Price (£m)</label><input id="ep-price" type="number" step="0.1" value="${pl.price||5}"></div>
+    <div class="form-group"><label>Real Team</label>
+      <select id="ep-team">
+        <option value="">— No team —</option>
+        ${teams.map(t => `<option value="${t}" ${t === rt ? 'selected' : ''}>${t}</option>`).join('')}
+      </select>
+    </div>
+    <div id="ep-msg"></div>
+    <button class="btn btn-primary w-full mt-16" onclick="savePlayerModal()">Save Changes</button>
+  `;
+  openModal('modal-player');
+}
+
+function savePlayerModal() {
+  const name = document.getElementById('ep-name').value.trim();
+  const price = parseFloat(document.getElementById('ep-price').value);
+  const team = document.getElementById('ep-team').value;
+  const msg = document.getElementById('ep-msg');
+
+  if (!name) { msg.innerHTML = '<div class="form-error">Name required.</div>'; return; }
+  if (isNaN(price) || price <= 0) { msg.innerHTML = '<div class="form-error">Valid price required.</div>'; return; }
+
+  if (editingPlayerId) {
+    // Update existing
+    const pl = (S.players||[]).find(p => p.name === editingPlayerId);
+    if (pl) { pl.name = name; pl.price = price; }
+    // Update squad refs
+    for (const u of Object.values(S.users)) {
+      if (u.squad) u.squad = u.squad.map(n => n === editingPlayerId ? name : n);
+    }
+    // Update team membership
+    for (const [t, members] of Object.entries(S.realTeams)) {
+      const idx = members.indexOf(editingPlayerId);
+      if (idx !== -1) members.splice(idx, 1);
+    }
+    if (team && S.realTeams[team]) S.realTeams[team].push(name);
+    // Update player stats key
+    if (S.playerStats[editingPlayerId] && name !== editingPlayerId) {
+      S.playerStats[name] = S.playerStats[editingPlayerId];
+      delete S.playerStats[editingPlayerId];
+    }
+  } else {
+    // Add new
+    if ((S.players||[]).find(p => p.name === name)) { msg.innerHTML = '<div class="form-error">Player already exists.</div>'; return; }
+    if (!S.players) S.players = [];
+    S.players.push({ name, price });
+    if (team && S.realTeams[team]) S.realTeams[team].push(name);
+  }
+
+  save();
+  closeModal('modal-player');
+  renderAdminPlayerList();
+  toast(editingPlayerId ? `${name} updated!` : `${name} added!`);
+}
+
+function adminRemovePlayer(name) {
+  if (!confirm(`Remove ${name} from the system?`)) return;
+  S.players = (S.players||[]).filter(p => p.name !== name);
+  for (const members of Object.values(S.realTeams)) {
+    const i = members.indexOf(name);
+    if (i !== -1) members.splice(i, 1);
+  }
+  for (const u of Object.values(S.users)) {
+    if (u.squad) u.squad = u.squad.filter(n => n !== name);
+  }
+  save();
+  renderAdminPlayerList();
+  toast(`${name} removed.`, 'info');
+}
+
+// ── ADMIN: USERS ──
+function renderAdminUsers() {
+  const tbody = document.getElementById('users-tbody');
+  tbody.innerHTML = Object.entries(S.users).map(([un, u]) => `
+    <tr>
+      <td>${un}${un === currentUser ? ' ★' : ''}</td>
+      <td class="bold">${u.teamName}</td>
+      <td>${u.isAdmin ? '✅' : '—'}</td>
+      <td class="pts-pos">${u.points}</td>
+      <td>${(u.squad||[]).length}/${TEAM_SIZE}</td>
+      <td>${u.transfers}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          ${!u.isAdmin ? `<button class="btn btn-ghost btn-xs" onclick="adminMakeAdmin('${un}')">Make Admin</button>` : ''}
+          ${un !== currentUser ? `<button class="btn btn-red btn-xs" onclick="adminRemoveUser('${un}')">Remove</button>` : ''}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function adminAddUser() {
+  const un = document.getElementById('au-username').value.trim();
+  const pw = document.getElementById('au-password').value;
+  const tn = document.getElementById('au-teamname').value.trim();
+  const isAdmin = document.getElementById('au-admin').checked;
+  const msg = document.getElementById('au-msg');
+
+  if (!un || !pw || !tn) { msg.innerHTML = '<div class="form-error">Fill all fields.</div>'; return; }
+  if (S.users[un]) { msg.innerHTML = '<div class="form-error">Username taken.</div>'; return; }
+
+  S.users[un] = { password: pw, teamName: tn, squad: [], points: 0, isAdmin, transfers: TRANSFERS_PER_WINDOW, windowsUsed: 0 };
+  save();
+  msg.innerHTML = '<div class="form-success">✅ User added!</div>';
+  document.getElementById('au-username').value = '';
+  document.getElementById('au-password').value = '';
+  document.getElementById('au-teamname').value = '';
+  document.getElementById('au-admin').checked = false;
+  renderAdminUsers();
+  setTimeout(() => msg.innerHTML = '', 2500);
+}
+
+function adminRemoveUser(un) {
+  if (!confirm(`Remove user "${un}" and their team?`)) return;
+  delete S.users[un];
+  save();
+  renderAdminUsers();
+  toast(`${un} removed.`, 'info');
+}
+
+function adminMakeAdmin(un) {
+  S.users[un].isAdmin = true;
+  save();
+  renderAdminUsers();
+  toast(`${un} is now an admin.`);
+}
+
+// ══════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  updateNavAuth();
+  renderHome();
+  // Countdown tick
+  setInterval(() => {
+    if (document.getElementById('page-home').classList.contains('active')) {
+      renderTWBanner();
+    }
+  }, 5000);
+});
+</script>
+</body>
+</html>
